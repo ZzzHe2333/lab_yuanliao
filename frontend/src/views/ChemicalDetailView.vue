@@ -54,14 +54,14 @@ function printLabel() {
       <div class="chemical-hero">
         <div>
           <small>#{{ c.id }}</small>
-          <h2>{{ c.name }}</h2>
+          <div class="name-with-tag"><h2>{{ c.name }}</h2><span v-if="c.is_new_material" class="new-material-tag">新原料</span></div>
           <p>CAS {{ c.cas || '未填写' }}</p>
         </div>
-        <StatusBadge :status="c.status" :expired="c.is_expired" :low="c.is_low_stock" />
+        <StatusBadge :status="c.status" :expired="c.is_expired" :low="c.is_low_stock" :negative="c.is_negative_stock" />
       </div>
 
       <div class="kv-grid">
-        <div><span>库存数量</span><b>{{ c.quantity }} {{ c.unit }}</b></div>
+        <div><span>库存数量</span><b :class="{ red: c.is_negative_stock }">{{ c.quantity }} {{ c.unit }}</b></div>
         <div><span>低库存阈值</span><b>{{ c.low_stock_threshold || '-' }} {{ c.low_stock_threshold ? c.unit : '' }}</b></div>
         <div><span>采购日期</span><b>{{ c.purchase_date || '-' }}</b></div>
         <div><span>到期日期</span><b :class="{ red:c.is_expired }">{{ c.expiration_date || '-' }}</b></div>
@@ -71,6 +71,7 @@ function printLabel() {
         <div><span>批号</span><b>{{ c.batch_no || '-' }}</b></div>
         <div><span>供应商</span><b>{{ c.supplier || '-' }}</b></div>
         <div><span>储存条件</span><b>{{ c.storage_condition || '-' }}</b></div>
+        <div><span>库存规则</span><b>{{ c.is_new_material ? '新原料：允许领用至负库存' : '普通原料：禁止负库存' }}</b></div>
       </div>
 
       <div class="notes">
@@ -108,7 +109,7 @@ function printLabel() {
         <tbody>
           <tr v-for="m in movements" :key="m.id">
             <td class="nowrap">{{ fmtTime(m.created_at) }}</td>
-            <td><span class="movement-badge" :class="`type-${m.movement_type}`">{{ m.movement_label }}</span></td>
+            <td><span class="movement-badge" :class="`type-${m.movement_type}`">{{ m.movement_label }}</span><small v-if="m.allow_negative" class="block negative-rule-text">负库存规则</small></td>
             <td :class="m.movement_type === 'out' ? 'stock-minus' : 'stock-plus'">
               {{ m.movement_type === 'out' ? '-' : '+' }}{{ m.quantity }} {{ m.unit }}
             </td>
