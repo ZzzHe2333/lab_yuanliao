@@ -31,11 +31,11 @@ async function remove(c) { if (!confirm(`确定删除“${c.name}”吗？`)) re
     <div class="table-wrap"><table><thead><tr><th>原料</th><th>位置</th><th>采购 / 到期</th><th>库存</th><th>状态</th><th>操作</th></tr></thead>
       <tbody>
         <tr v-for="c in rows" :key="c.id">
-          <td><RouterLink :to="`/chemicals/${c.id}`" class="strong-link">{{ c.name }}</RouterLink><small class="block">CAS {{ c.cas || '-' }} · 批号 {{ c.batch_no || '-' }}</small></td>
+          <td><RouterLink :to="`/chemicals/${c.id}`" class="strong-link">{{ c.name }}</RouterLink><span v-if="c.is_new_material" class="new-material-tag inline-tag">新原料</span><small class="block">CAS {{ c.cas || '-' }} · 批号 {{ c.batch_no || '-' }}</small></td>
           <td>{{ c.warehouse_name || '-' }}<small class="block">{{ [c.room, c.cabinet && `柜 ${c.cabinet}`, c.shelf && `层 ${c.shelf}`].filter(Boolean).join(' / ') || '未指定库位' }}</small></td>
           <td>{{ c.purchase_date || '-' }}<small class="block" :class="{ red: c.is_expired }">到期 {{ c.expiration_date || '-' }}</small></td>
-          <td><b>{{ c.quantity }}</b> {{ c.unit }}<small class="block" v-if="c.low_stock_threshold">预警 ≤ {{ c.low_stock_threshold }} {{ c.unit }}</small></td>
-          <td><StatusBadge :status="c.status" :expired="c.is_expired" :low="c.is_low_stock" /></td>
+          <td><b :class="{ red: c.is_negative_stock }">{{ c.quantity }}</b> {{ c.unit }}<small class="block" v-if="c.is_negative_stock">配方/实验已超前领用，待补入库</small><small class="block" v-else-if="c.low_stock_threshold">预警 ≤ {{ c.low_stock_threshold }} {{ c.unit }}</small></td>
+          <td><StatusBadge :status="c.status" :expired="c.is_expired" :low="c.is_low_stock" :negative="c.is_negative_stock" /></td>
           <td class="actions"><RouterLink class="link-btn" :to="`/chemicals/${c.id}/edit`">编辑</RouterLink><button class="link-btn danger-link" @click="remove(c)">删除</button></td>
         </tr>
         <tr v-if="!loading && !rows.length"><td colspan="6" class="empty">没有符合条件的原料。</td></tr>
