@@ -19,7 +19,7 @@ onMounted(async () => { try { data.value = await api.stats() } catch (e) { error
     <div class="stat-card"><span>原料总数</span><b>{{ data.total_chemicals }}</b><small>当前登记原料</small></div>
     <div class="stat-card"><span>仓库数量</span><b>{{ data.warehouses }}</b><small>已配置库区</small></div>
     <div class="stat-card alert-stat"><span>已过期</span><b>{{ data.expired }}</b><small>需要优先处理</small></div>
-    <div class="stat-card warn-stat"><span>低库存</span><b>{{ data.low_stock }}</b><small>达到预警阈值</small></div>
+    <div class="stat-card warn-stat"><span>低库存 / 欠料</span><b>{{ data.low_stock }}</b><small>含新原料负库存</small></div>
   </section>
   <section class="panel">
     <div class="panel-title"><div><h2>最近新增</h2><p>最新登记的 6 条原料</p></div><RouterLink to="/chemicals">查看全部 →</RouterLink></div>
@@ -27,9 +27,9 @@ onMounted(async () => { try { data.value = await api.stats() } catch (e) { error
       <table><thead><tr><th>名称</th><th>CAS</th><th>仓库</th><th>库存</th><th>状态</th></tr></thead>
       <tbody>
         <tr v-for="c in data.recent" :key="c.id">
-          <td><RouterLink :to="`/chemicals/${c.id}`" class="strong-link">{{ c.name }}</RouterLink><small class="block">#{{ c.id }} · {{ c.batch_no || '无批号' }}</small></td>
-          <td>{{ c.cas || '-' }}</td><td>{{ c.warehouse_name || '-' }}</td><td>{{ c.quantity }} {{ c.unit }}</td>
-          <td><StatusBadge :status="c.status" :expired="c.is_expired" :low="c.is_low_stock" /></td>
+          <td><RouterLink :to="`/chemicals/${c.id}`" class="strong-link">{{ c.name }}</RouterLink><span v-if="c.is_new_material" class="new-material-tag inline-tag">新原料</span><small class="block">#{{ c.id }} · {{ c.batch_no || '无批号' }}</small></td>
+          <td>{{ c.cas || '-' }}</td><td>{{ c.warehouse_name || '-' }}</td><td :class="{ red: c.is_negative_stock }">{{ c.quantity }} {{ c.unit }}</td>
+          <td><StatusBadge :status="c.status" :expired="c.is_expired" :low="c.is_low_stock" :negative="c.is_negative_stock" /></td>
         </tr>
         <tr v-if="!data.recent.length"><td colspan="5" class="empty">还没有原料，先新增一条。</td></tr>
       </tbody></table>
