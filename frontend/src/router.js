@@ -5,6 +5,7 @@ import ChemicalFormView from './views/ChemicalFormView.vue'
 import ChemicalDetailView from './views/ChemicalDetailView.vue'
 import WarehousesView from './views/WarehousesView.vue'
 import ScanView from './views/ScanView.vue'
+import MovementsView from './views/MovementsView.vue'
 
 export default createRouter({
   history: createWebHistory(),
@@ -15,6 +16,7 @@ export default createRouter({
     { path: '/chemicals/:id', component: ChemicalDetailView },
     { path: '/chemicals/:id/edit', component: ChemicalFormView },
     { path: '/warehouses', component: WarehousesView },
-    { path: '/scan', component: ScanView }
+    { path: '/scan', component: ScanView },
+    { path: '/movements', component: MovementsView }
   ]
 })
