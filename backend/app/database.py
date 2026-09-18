@@ -105,6 +105,24 @@ def init_db() -> None:
             """
         )
 
+        # 为升级前已经存在的库存建立基准流水，避免启用流水功能后历史从空白开始。
+        db.execute(
+            """
+            INSERT INTO stock_movements(
+                chemical_id, chemical_name, unit, movement_type, quantity,
+                quantity_before, quantity_after, purpose, notes
+            )
+            SELECT
+                c.id, c.name, c.unit, 'in', c.quantity,
+                0, c.quantity, '系统迁移初始库存', '启用库存流水功能时自动建立基准'
+            FROM chemicals c
+            WHERE c.quantity > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM stock_movements m WHERE m.chemical_id = c.id
+              )
+            """
+        )
+
         count = db.execute("SELECT COUNT(*) AS n FROM warehouses").fetchone()["n"]
         if count == 0:
             db.execute(
