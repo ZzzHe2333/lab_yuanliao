@@ -47,8 +47,11 @@ def chemical_with_meta(row) -> dict:
     item["is_new_material"] = bool(item.get("is_new_material", 0))
     item["is_negative_stock"] = bool(item.get("quantity", 0) < 0)
     item["is_low_stock"] = bool(
-        item.get("low_stock_threshold", 0) > 0
-        and item.get("quantity", 0) <= item.get("low_stock_threshold", 0)
+        item.get("quantity", 0) < 0
+        or (
+            item.get("low_stock_threshold", 0) > 0
+            and item.get("quantity", 0) <= item.get("low_stock_threshold", 0)
+        )
     )
     return item
 
@@ -84,7 +87,11 @@ def dashboard_stats():
             (today,),
         ).fetchone()["n"]
         low_stock = db.execute(
-            "SELECT COUNT(*) n FROM chemicals WHERE low_stock_threshold > 0 AND quantity <= low_stock_threshold"
+            """
+            SELECT COUNT(*) n FROM chemicals
+            WHERE quantity < 0
+               OR (low_stock_threshold > 0 AND quantity <= low_stock_threshold)
+            """
         ).fetchone()["n"]
         recent = db.execute(
             """
@@ -190,7 +197,9 @@ def list_chemicals(
         )
         args.append(date.today().isoformat())
     elif alert == "low":
-        clauses.append("c.low_stock_threshold > 0 AND c.quantity <= c.low_stock_threshold")
+        clauses.append(
+            "(c.quantity < 0 OR (c.low_stock_threshold > 0 AND c.quantity <= c.low_stock_threshold))"
+        )
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     direction = "ASC" if order == "asc" else "DESC"
     with get_db() as db:
