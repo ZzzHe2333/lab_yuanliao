@@ -29,6 +29,13 @@ export const api = {
   createChemical: (body) => request('/chemicals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   updateChemical: (id, body) => request(`/chemicals/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   deleteChemical: (id) => request(`/chemicals/${id}`, { method: 'DELETE' }),
+  movements: (params = {}) => {
+    const query = new URLSearchParams()
+    Object.entries(params).forEach(([k, v]) => { if (v !== '' && v !== null && v !== undefined) query.set(k, v) })
+    return request(`/stock-movements${query.size ? `?${query}` : ''}`)
+  },
+  chemicalMovements: (id, limit = 50) => request(`/chemicals/${id}/stock-movements?limit=${limit}`),
+  createMovement: (body) => request('/stock-movements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   uploadSds: (id, file) => {
     const form = new FormData(); form.append('file', file)
     return request(`/files/sds/${id}`, { method: 'POST', body: form })
