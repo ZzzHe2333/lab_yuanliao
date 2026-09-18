@@ -24,7 +24,7 @@ jobs:
         run: python -c "from app.database import init_db; init_db(); print('database init ok')"
       - name: Test stock rules
         working-directory: backend
-        run: python tests/stock_rule_smoke.py
+        run: PYTHONPATH=. python tests/stock_rule_smoke.py
 
   frontend:
     runs-on: ubuntu-latest
