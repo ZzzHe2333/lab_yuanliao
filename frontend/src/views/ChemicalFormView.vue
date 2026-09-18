@@ -30,7 +30,8 @@ const form = reactive({
   brand: '',
   batch_no: '',
   storage_condition: '',
-  notes: ''
+  notes: '',
+  is_new_material: false
 })
 
 onMounted(async () => {
@@ -86,6 +87,13 @@ async function save() {
         </label>
         <label>供应商
           <input v-model="form.supplier" class="input" />
+        </label>
+        <label class="span-2 new-material-toggle">
+          <input v-model="form.is_new_material" type="checkbox" />
+          <span>
+            <b>标记为新原料</b>
+            <small>新原料领用时允许库存扣成负值，用于记录配方/实验已消耗但尚未补录入库的情况。</small>
+          </span>
         </label>
       </div>
     </div>
