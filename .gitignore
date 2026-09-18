@@ -1,0 +1,19 @@
+# Runtime data (database / SDS / QR codes)
+data/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node / Vue
+frontend/node_modules/
+frontend/dist/
+*.log
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
