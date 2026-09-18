@@ -44,6 +44,8 @@ def chemical_with_meta(row) -> dict:
     item = dict(row)
     exp = item.get("expiration_date")
     item["is_expired"] = bool(exp and exp < date.today().isoformat())
+    item["is_new_material"] = bool(item.get("is_new_material", 0))
+    item["is_negative_stock"] = bool(item.get("quantity", 0) < 0)
     item["is_low_stock"] = bool(
         item.get("low_stock_threshold", 0) > 0
         and item.get("quantity", 0) <= item.get("low_stock_threshold", 0)
@@ -342,11 +344,13 @@ def create_stock_movement(payload: StockMovementCreate):
         before = float(chemical["quantity"])
         amount = float(payload.quantity)
 
+        allow_negative = bool(chemical["is_new_material"]) and payload.movement_type == "out"
+
         if payload.movement_type == "out":
-            if amount > before:
+            if amount > before and not allow_negative:
                 raise HTTPException(
                     status_code=409,
-                    detail=f"库存不足：当前仅有 {before:g} {chemical['unit']}",
+                    detail=f"库存不足：当前仅有 {before:g} {chemical['unit']}。普通原料不允许负库存",
                 )
             after = before - amount
         else:
@@ -360,8 +364,9 @@ def create_stock_movement(payload: StockMovementCreate):
             """
             INSERT INTO stock_movements(
                 chemical_id, chemical_name, unit, movement_type, quantity,
-                quantity_before, quantity_after, operator, purpose, reference_no, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                quantity_before, quantity_after, operator, purpose, reference_no, notes,
+                allow_negative
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload.chemical_id,
@@ -375,6 +380,7 @@ def create_stock_movement(payload: StockMovementCreate):
                 payload.purpose,
                 payload.reference_no,
                 payload.notes,
+                1 if allow_negative else 0,
             ),
         )
         row = db.execute(
