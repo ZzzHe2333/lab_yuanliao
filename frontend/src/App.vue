@@ -5,6 +5,7 @@ const items = [
   ['/', '总览', '⌂'],
   ['/chemicals', '原料库存', '▦'],
   ['/chemicals/new', '新增原料', '+'],
+  ['/movements', '库存流水', '⇄'],
   ['/scan', '扫码查询', '⌁'],
   ['/warehouses', '仓库管理', '▣']
 ]
