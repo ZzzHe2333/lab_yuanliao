@@ -12,7 +12,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from .database import QR_DIR, SDS_DIR, get_db, init_db
-from .schemas import (\n    ChemicalCreate,\n    ChemicalUpdate,\n    StockMovementCreate,\n    WarehouseCreate,\n    WarehouseUpdate,\n)
+from .schemas import (
+    ChemicalCreate,
+    ChemicalUpdate,
+    StockMovementCreate,
+    WarehouseCreate,
+    WarehouseUpdate,
+)
 
 app = FastAPI(
     title="实验室原料管理系统 API",
