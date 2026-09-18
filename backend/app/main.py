@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from .database import QR_DIR, SDS_DIR, get_db, init_db
-from .schemas import ChemicalCreate, ChemicalUpdate, WarehouseCreate, WarehouseUpdate
+from .schemas import (\n    ChemicalCreate,\n    ChemicalUpdate,\n    StockMovementCreate,\n    WarehouseCreate,\n    WarehouseUpdate,\n)
 
 app = FastAPI(
     title="实验室原料管理系统 API",
@@ -219,7 +219,26 @@ def create_chemical(payload: ChemicalCreate):
             f"INSERT INTO chemicals ({columns}) VALUES ({placeholders})",
             list(data.values()),
         )
-        row = require_chemical(db, cur.lastrowid)
+        chemical_id = cur.lastrowid
+        if data["quantity"] > 0:
+            db.execute(
+                """
+                INSERT INTO stock_movements(
+                    chemical_id, chemical_name, unit, movement_type, quantity,
+                    quantity_before, quantity_after, purpose, notes
+                ) VALUES (?, ?, ?, 'in', ?, 0, ?, ?, ?)
+                """,
+                (
+                    chemical_id,
+                    data["name"],
+                    data["unit"],
+                    data["quantity"],
+                    data["quantity"],
+                    "建档初始库存",
+                    "创建原料时自动记录",
+                ),
+            )
+        row = require_chemical(db, chemical_id)
     return chemical_with_meta(row)
 
 
@@ -229,7 +248,16 @@ def update_chemical(chemical_id: int, payload: ChemicalUpdate):
     if not fields:
         raise HTTPException(status_code=400, detail="没有需要更新的字段")
     with get_db() as db:
-        require_chemical(db, chemical_id)
+        current = require_chemical(db, chemical_id)
+        if (
+            fields.get("unit")
+            and fields["unit"] != current["unit"]
+            and float(current["quantity"]) != 0
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="当前库存不为 0，不能直接修改计量单位；请先通过库存流水调整库存",
+            )
         if fields.get("warehouse_id") is not None and not db.execute(
             "SELECT id FROM warehouses WHERE id = ?", (fields["warehouse_id"],)
         ).fetchone():
@@ -254,6 +282,124 @@ def delete_chemical(chemical_id: int):
         (SDS_DIR / sds_filename).unlink(missing_ok=True)
     (QR_DIR / f"{chemical_id}.png").unlink(missing_ok=True)
     return {"message": "原料已删除"}
+
+
+def movement_with_meta(row) -> dict:
+    item = dict(row)
+    labels = {"in": "入库", "out": "领用", "return": "退库"}
+    item["movement_label"] = labels.get(item["movement_type"], item["movement_type"])
+    return item
+
+
+@app.get("/api/v1/stock-movements")
+def list_stock_movements(
+    chemical_id: int | None = None,
+    movement_type: Literal["", "in", "out", "return"] = "",
+    search: str = "",
+    limit: int = 200,
+):
+    clauses = []
+    args = []
+    if chemical_id is not None:
+        clauses.append("m.chemical_id = ?")
+        args.append(chemical_id)
+    if movement_type:
+        clauses.append("m.movement_type = ?")
+        args.append(movement_type)
+    if search:
+        clauses.append(
+            "(m.chemical_name LIKE ? OR m.operator LIKE ? OR m.purpose LIKE ? OR m.reference_no LIKE ?)"
+        )
+        like = f"%{search}%"
+        args.extend([like, like, like, like])
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    safe_limit = min(max(limit, 1), 1000)
+    with get_db() as db:
+        rows = db.execute(
+            f"""
+            SELECT m.*, c.name AS current_chemical_name
+            FROM stock_movements m
+            LEFT JOIN chemicals c ON c.id = m.chemical_id
+            {where}
+            ORDER BY m.id DESC
+            LIMIT ?
+            """,
+            [*args, safe_limit],
+        ).fetchall()
+    return [movement_with_meta(row) for row in rows]
+
+
+@app.post("/api/v1/stock-movements", status_code=201)
+def create_stock_movement(payload: StockMovementCreate):
+    with get_db() as db:
+        chemical = require_chemical(db, payload.chemical_id)
+        before = float(chemical["quantity"])
+        amount = float(payload.quantity)
+
+        if payload.movement_type == "out":
+            if amount > before:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"库存不足：当前仅有 {before:g} {chemical['unit']}",
+                )
+            after = before - amount
+        else:
+            after = before + amount
+
+        db.execute(
+            "UPDATE chemicals SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (after, payload.chemical_id),
+        )
+        cur = db.execute(
+            """
+            INSERT INTO stock_movements(
+                chemical_id, chemical_name, unit, movement_type, quantity,
+                quantity_before, quantity_after, operator, purpose, reference_no, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                payload.chemical_id,
+                chemical["name"],
+                chemical["unit"],
+                payload.movement_type,
+                amount,
+                before,
+                after,
+                payload.operator,
+                payload.purpose,
+                payload.reference_no,
+                payload.notes,
+            ),
+        )
+        row = db.execute(
+            """
+            SELECT m.*, c.name AS current_chemical_name
+            FROM stock_movements m
+            LEFT JOIN chemicals c ON c.id = m.chemical_id
+            WHERE m.id = ?
+            """,
+            (cur.lastrowid,),
+        ).fetchone()
+    return movement_with_meta(row)
+
+
+@app.get("/api/v1/chemicals/{chemical_id}/stock-movements")
+def chemical_stock_movements(chemical_id: int, limit: int = 50):
+    safe_limit = min(max(limit, 1), 500)
+    with get_db() as db:
+        require_chemical(db, chemical_id)
+        rows = db.execute(
+            """
+            SELECT m.*, c.name AS current_chemical_name
+            FROM stock_movements m
+            LEFT JOIN chemicals c ON c.id = m.chemical_id
+            WHERE m.chemical_id = ?
+            ORDER BY m.id DESC
+            LIMIT ?
+            """,
+            (chemical_id, safe_limit),
+        ).fetchall()
+    return [movement_with_meta(row) for row in rows]
 
 
 def safe_name(filename: str) -> str:
