@@ -78,10 +78,30 @@ def init_db() -> None:
                 FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL
             );
 
+            CREATE TABLE IF NOT EXISTS stock_movements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chemical_id INTEGER,
+                chemical_name TEXT NOT NULL,
+                unit TEXT NOT NULL,
+                movement_type TEXT NOT NULL CHECK (movement_type IN ('in', 'out', 'return')),
+                quantity REAL NOT NULL CHECK (quantity > 0),
+                quantity_before REAL NOT NULL,
+                quantity_after REAL NOT NULL,
+                operator TEXT NOT NULL DEFAULT '',
+                purpose TEXT NOT NULL DEFAULT '',
+                reference_no TEXT NOT NULL DEFAULT '',
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (chemical_id) REFERENCES chemicals(id) ON DELETE SET NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_chemicals_name ON chemicals(name);
             CREATE INDEX IF NOT EXISTS idx_chemicals_cas ON chemicals(cas);
             CREATE INDEX IF NOT EXISTS idx_chemicals_warehouse ON chemicals(warehouse_id);
             CREATE INDEX IF NOT EXISTS idx_chemicals_expiration ON chemicals(expiration_date);
+            CREATE INDEX IF NOT EXISTS idx_stock_movements_chemical ON stock_movements(chemical_id);
+            CREATE INDEX IF NOT EXISTS idx_stock_movements_type ON stock_movements(movement_type);
+            CREATE INDEX IF NOT EXISTS idx_stock_movements_created ON stock_movements(created_at);
             """
         )
 
