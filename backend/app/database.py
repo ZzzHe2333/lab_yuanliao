@@ -72,6 +72,7 @@ def init_db() -> None:
                 batch_no TEXT NOT NULL DEFAULT '',
                 storage_condition TEXT NOT NULL DEFAULT '',
                 notes TEXT NOT NULL DEFAULT '',
+                is_new_material INTEGER NOT NULL DEFAULT 0,
                 sds_filename TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -91,6 +92,7 @@ def init_db() -> None:
                 purpose TEXT NOT NULL DEFAULT '',
                 reference_no TEXT NOT NULL DEFAULT '',
                 notes TEXT NOT NULL DEFAULT '',
+                allow_negative INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (chemical_id) REFERENCES chemicals(id) ON DELETE SET NULL
             );
@@ -104,6 +106,23 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_stock_movements_created ON stock_movements(created_at);
             """
         )
+
+        # 兼容旧版数据库：CREATE TABLE IF NOT EXISTS 不会自动增加新列。
+        chemical_columns = {
+            row["name"] for row in db.execute("PRAGMA table_info(chemicals)").fetchall()
+        }
+        if "is_new_material" not in chemical_columns:
+            db.execute(
+                "ALTER TABLE chemicals ADD COLUMN is_new_material INTEGER NOT NULL DEFAULT 0"
+            )
+
+        movement_columns = {
+            row["name"] for row in db.execute("PRAGMA table_info(stock_movements)").fetchall()
+        }
+        if "allow_negative" not in movement_columns:
+            db.execute(
+                "ALTER TABLE stock_movements ADD COLUMN allow_negative INTEGER NOT NULL DEFAULT 0"
+            )
 
         # 为升级前已经存在的库存建立基准流水，避免启用流水功能后历史从空白开始。
         db.execute(
