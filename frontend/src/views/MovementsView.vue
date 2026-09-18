@@ -21,6 +21,21 @@ const form = reactive({
 })
 
 const selected = computed(() => chemicals.value.find(c => String(c.id) === String(form.chemical_id)))
+const projectedStock = computed(() => {
+  if (!selected.value) return null
+  const current = Number(selected.value.quantity || 0)
+  const amount = Number(form.quantity || 0)
+  if (!amount) return current
+  return form.movement_type === 'out' ? current - amount : current + amount
+})
+const insufficientNormalStock = computed(() =>
+  Boolean(
+    selected.value &&
+    form.movement_type === 'out' &&
+    !selected.value.is_new_material &&
+    projectedStock.value < 0
+  )
+)
 const movementMeta = {
   in: { label: '入库', hint: '采购到货、拿样入库或补充库存', sign: '+', className: 'move-in' },
   out: { label: '领用', hint: '实验、小试、中试或样品制作领用', sign: '-', className: 'move-out' },
@@ -124,7 +139,7 @@ onMounted(async () => {
         <select v-model="form.chemical_id" class="input" required>
           <option value="">请选择原料</option>
           <option v-for="c in chemicals" :key="c.id" :value="String(c.id)">
-            {{ c.name }} · {{ c.quantity }} {{ c.unit }} · {{ c.warehouse_name || '未分仓' }}
+            {{ c.is_new_material ? '[新原料] ' : '' }}{{ c.name }} · {{ c.quantity }} {{ c.unit }} · {{ c.warehouse_name || '未分仓' }}
           </option>
         </select>
       </label>
@@ -132,19 +147,21 @@ onMounted(async () => {
       <div v-if="selected" class="stock-preview">
         <div>
           <span>当前库存</span>
-          <b>{{ selected.quantity }} {{ selected.unit }}</b>
+          <b :class="{ red: selected.is_negative_stock }">{{ selected.quantity }} {{ selected.unit }}</b>
         </div>
         <div>
           <span>本次操作后</span>
-          <b>
-            {{ form.quantity
-              ? (form.movement_type === 'out'
-                  ? Math.max(0, Number(selected.quantity) - Number(form.quantity || 0))
-                  : Number(selected.quantity) + Number(form.quantity || 0))
-              : selected.quantity }}
-            {{ selected.unit }}
-          </b>
+          <b :class="{ red: projectedStock < 0 }">{{ projectedStock }} {{ selected.unit }}</b>
         </div>
+      </div>
+
+      <div v-if="selected?.is_new_material && form.movement_type === 'out'" class="rule-notice new-rule">
+        <b>新原料规则已启用</b>
+        <span>本次领用允许库存变为负值；负值代表配方/实验已经消耗、待后续入库补回。</span>
+      </div>
+      <div v-else-if="insufficientNormalStock" class="rule-notice danger-box">
+        <b>普通原料库存不足</b>
+        <span>普通原料不允许负库存，请减少领用数量或先登记入库。</span>
       </div>
 
       <div class="form-grid compact-grid">
@@ -173,7 +190,7 @@ onMounted(async () => {
         </label>
       </div>
 
-      <button class="btn primary movement-submit" :disabled="saving || !form.chemical_id">
+      <button class="btn primary movement-submit" :disabled="saving || !form.chemical_id || insufficientNormalStock">
         {{ saving ? '保存中...' : `确认${movementMeta[form.movement_type].label}` }}
       </button>
     </form>
@@ -221,6 +238,7 @@ onMounted(async () => {
                 </RouterLink>
                 <span v-else>{{ m.chemical_name }}（已删除）</span>
                 <small class="block">{{ m.reference_no || '无单据号' }}</small>
+                <small v-if="m.allow_negative" class="block negative-rule-text">新原料负库存规则</small>
               </td>
               <td>
                 <span class="movement-badge" :class="`type-${m.movement_type}`">{{ m.movement_label }}</span>
