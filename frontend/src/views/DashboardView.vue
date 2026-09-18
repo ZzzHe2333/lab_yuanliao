@@ -11,7 +11,8 @@ onMounted(async () => { try { data.value = await api.stats() } catch (e) { error
 </script>
 <template>
   <PageHeader title="实验室原料总览" subtitle="集中查看库存、过期与低库存情况">
-    <RouterLink class="btn ghost" to="/movements">库存操作</RouterLink>\n    <RouterLink class="btn primary" to="/chemicals/new">+ 新增原料</RouterLink>
+    <RouterLink class="btn ghost" to="/movements">库存操作</RouterLink>
+    <RouterLink class="btn primary" to="/chemicals/new">+ 新增原料</RouterLink>
   </PageHeader>
   <div v-if="error" class="alert danger-box">{{ error }}</div>
   <section class="stat-grid">
