@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -53,7 +53,6 @@ class ChemicalUpdate(BaseModel):
     purchase_date: Optional[str] = None
     expiration_date: Optional[str] = None
     status: Optional[str] = Field(default=None, max_length=30)
-    quantity: Optional[float] = Field(default=None, ge=0)
     unit: Optional[str] = Field(default=None, max_length=20)
     low_stock_threshold: Optional[float] = Field(default=None, ge=0)
     warehouse_id: Optional[int] = None
@@ -65,3 +64,13 @@ class ChemicalUpdate(BaseModel):
     batch_no: Optional[str] = Field(default=None, max_length=100)
     storage_condition: Optional[str] = Field(default=None, max_length=200)
     notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class StockMovementCreate(BaseModel):
+    chemical_id: int
+    movement_type: Literal["in", "out", "return"]
+    quantity: float = Field(gt=0)
+    operator: str = Field(default="", max_length=100)
+    purpose: str = Field(default="", max_length=300)
+    reference_no: str = Field(default="", max_length=100)
+    notes: str = Field(default="", max_length=1000)
