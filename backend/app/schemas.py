@@ -41,6 +41,7 @@ class ChemicalBase(BaseModel):
     batch_no: str = Field(default="", max_length=100)
     storage_condition: str = Field(default="", max_length=200)
     notes: str = Field(default="", max_length=2000)
+    is_new_material: bool = False
 
 
 class ChemicalCreate(ChemicalBase):
@@ -64,6 +65,7 @@ class ChemicalUpdate(BaseModel):
     batch_no: Optional[str] = Field(default=None, max_length=100)
     storage_condition: Optional[str] = Field(default=None, max_length=200)
     notes: Optional[str] = Field(default=None, max_length=2000)
+    is_new_material: Optional[bool] = None
 
 
 class StockMovementCreate(BaseModel):
